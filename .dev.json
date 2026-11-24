@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "name": "Trading_Backtester",
+  "display_name": "Trading Backtester",
+  "description": "Historical market simulation and backtesting platform",
+  "type": "python",
+  "status": "active",
+  "environment": {
+    "type": "python-venv",
+    "mode": "local",
+    "path": ".venv"
+  },
+  "commands": {
+    "run": "uv run backtest --help",
+    "install": "uv sync --locked",
+    "test": "uv run pytest"
+  },
+  "git": {
+    "enabled": true
+  },
+  "tags": [
+    "python",
+    "trading",
+    "backtesting"
+  ],
+  "created_at": "2026-11-24",
+  "updated_at": "2026-11-24"
+}

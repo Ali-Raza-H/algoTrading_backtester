@@ -1,0 +1,9 @@
+schema_version: 1
+base_config: experiment.example.yaml
+population_start: '2016-01-01T00:00:00Z'
+population_end: '2026-01-01T00:00:00Z'
+duration_days: 90
+count: 10
+seed: 42
+non_overlap: false
+
