@@ -28,7 +28,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/backtest"]
+packages = ["src/backtest", "strategies"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"

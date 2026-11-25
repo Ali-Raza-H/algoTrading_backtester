@@ -1,1 +1,16 @@
 *.csv
+
+# Local market data and generated run artifacts.
+/data/
+/runs/
+/config/data/
+/config/runs/
+*.parquet
+
+# Python and tool caches.
+__pycache__/
+*.py[cod]
+.coverage
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/

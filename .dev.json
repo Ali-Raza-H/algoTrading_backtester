@@ -1,10 +1,12 @@
 {
-  "schema_version": 1,
-  "name": "Trading_Backtester",
+  "schema_version": 2,
+  "name": "algoTrading_backtester",
   "display_name": "Trading Backtester",
   "description": "Historical market simulation and backtesting platform",
   "type": "python",
-  "status": "active",
+  "category": "trading",
+  "stage": "inProgress",
+  "ignored": false,
   "environment": {
     "type": "python-venv",
     "mode": "local",

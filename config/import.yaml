@@ -1,0 +1,20 @@
+schema_version: 1
+source: ../data/xauusd_1m.csv
+output: data/xauusd_1m_dataset
+instrument: XAUUSD
+timeframe: 1m
+batch_size: 1000000
+strict_gaps: false
+csv:
+  timestamp: timestamp
+  open: open
+  high: high
+  low: low
+  close: close
+  volume: volume
+  timestamp_semantics: open
+  timestamp_format: null
+  timezone: UTC
+  delimiter: ','
+  price_basis: mid
+

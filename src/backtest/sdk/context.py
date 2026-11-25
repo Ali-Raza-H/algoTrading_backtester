@@ -15,6 +15,7 @@ from backtest.broker import Broker
 from backtest.domain.models import (
     AccountSnapshot,
     Bar,
+    Instrument,
     Order,
     OrderRequest,
     OrderType,
@@ -54,6 +55,11 @@ class StrategyContext:
     @property
     def is_warmup(self) -> bool:
         return self._warmup
+
+    @property
+    def instrument(self) -> Instrument:
+        """The configured instrument metadata for sizing and price rounding."""
+        return self._broker.instrument
 
     def _advance(self, now: datetime, *, warmup: bool) -> None:
         if self._now is not None and now < self._now:

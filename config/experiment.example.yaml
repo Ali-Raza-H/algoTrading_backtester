@@ -1,7 +1,7 @@
 schema_version: 1
 
 market:
-  dataset: ../data/xauusd-1m/manifest.json
+  dataset: ./data/xauusd_1m_dataset/manifest.json
 
 instrument:
   id: XAUUSD

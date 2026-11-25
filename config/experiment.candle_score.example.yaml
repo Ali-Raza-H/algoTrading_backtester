@@ -1,0 +1,71 @@
+schema_version: 1
+
+market:
+  dataset: ./data/xauusd_1m_dataset/manifest.json
+
+instrument:
+  id: XAUUSD
+  currency: USD
+  contract_size: '100'
+  price_tick: '0.01'
+  quantity_step: '0.01'
+  min_quantity: '0.01'
+  max_quantity: '100.00'
+  leverage: '30'
+  spread: '0.20'
+  session_timezone: UTC
+  sessions: ['Mon 00:00-23:59', 'Tue 00:00-23:59', 'Wed 00:00-23:59', 'Thu 00:00-23:59', 'Fri 00:00-22:00']
+
+strategy:
+  entrypoint: strategies.candle_score:build_strategy
+  strategy_id: candle-score-example
+  version: '1.0.0'
+  parameters:
+    timeframe: 1h
+    candle_count: 12
+    average_periods: 5
+    big_move_percent: '1.0'
+    atr_period: 14
+    atr_multiplier: '1.5'
+    risk_reward: '2.0'
+    quantity: '0.01'
+  timeframes: [1m, 1h]
+  lookbacks:
+    1m: 1
+    1h: 32
+
+execution:
+  slippage_ticks: '0'
+  commission_per_lot_per_side: '0'
+  financing_long_per_lot_daily: '0'
+  financing_short_per_lot_daily: '0'
+  financing_rollover_time: '22:00'
+  financing_timezone: UTC
+  financing_triple_day: Wed
+  intrabar_policy: stop_first
+  stale_after_seconds: null
+
+account:
+  currency: USD
+  starting_balance: '10000'
+  position_mode: netting
+  stop_out_percent: '50'
+
+benchmark:
+  enabled: false
+  trials: 100
+  policies: [random_policy, cash]
+  entry_probability: 0.01
+  holding_bars: 12
+  quantity: '0.01'
+  timeframe: 1h
+
+experiment:
+  start: '2020-01-01T00:00:00Z'
+  end: '2021-01-01T00:00:00Z'
+  seed: 42
+  workers: 1
+
+report:
+  directory: runs
+  full_market_trace: false
