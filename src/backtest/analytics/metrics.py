@@ -100,6 +100,10 @@ def calculate_metrics(result: RunResult) -> dict[str, Any]:
         "realized_net_pnl": _money(realized),
         "net_return_percent": float((final_equity / initial - 1) * 100),
         "closed_trades": len(trades),
+        "trades_per_calendar_day": len(trades)
+        / ((result.config.end - result.config.start).total_seconds() / 86400),
+        "average_profit": _money(gross_profit / len(wins)) if wins else None,
+        "average_loss": _money(-gross_loss / len(losses)) if losses else None,
         "wins": len(wins),
         "losses": len(losses),
         "breakeven": len(breakeven),

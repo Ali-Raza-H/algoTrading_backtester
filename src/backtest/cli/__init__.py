@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +81,35 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _run_with_progress(config: ExperimentConfig) -> tuple[Any, Path]:
+    print(
+        f"Starting simulation: {config.start.isoformat()} to {config.end.isoformat()}",
+        file=sys.stderr, flush=True,
+    )
+    last_update = time.monotonic()
+
+    def progress(count: int, timestamp: datetime) -> None:
+        nonlocal last_update
+        now = time.monotonic()
+        if now - last_update >= 2:
+            print(
+                f"Simulating: {count:,} bars, {timestamp.isoformat()}",
+                file=sys.stderr, flush=True,
+            )
+            last_update = now
+
+    result = execute_run(config, progress=progress)
+    print(f"Simulation complete: {result.source_bars:,} bars", file=sys.stderr, flush=True)
+    if config.benchmark.enabled:
+        print("Running benchmarks...", file=sys.stderr, flush=True)
+    def benchmark_progress(count: int, total: int) -> None:
+        print(f"Benchmark trials: {count}/{total}", file=sys.stderr, flush=True)
+
+    run_benchmarks(result, progress=benchmark_progress)
+    print("Writing results...", file=sys.stderr, flush=True)
+    return result, write_run(result)
+
+
 def _execute(args: argparse.Namespace) -> int:
     if args.command == "data":
         if args.data_command == "import":
@@ -97,9 +128,7 @@ def _execute(args: argparse.Namespace) -> int:
         if args.dry_run:
             _json(validate_run(config))
             return 0
-        result = execute_run(config)
-        run_benchmarks(result)
-        run_dir = write_run(result)
+        result, run_dir = _run_with_progress(config)
         _json({"run_id": result.run_id, "status": result.status, "directory": str(run_dir)})
         return 0
     if args.command == "batch":
@@ -113,9 +142,8 @@ def _execute(args: argparse.Namespace) -> int:
             )
             for config in configs:
                 try:
-                    result = execute_run(config)
-                    run_benchmarks(result)
-                    directory = write_run(result)
+                    print(f"Batch config: {item}", file=sys.stderr, flush=True)
+                    result, directory = _run_with_progress(config)
                     outcomes.append(
                         {
                             "config": str(item),

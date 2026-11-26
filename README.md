@@ -21,6 +21,8 @@ uv run backtest data import --config config/import.example.yaml
 uv run backtest run --config config/experiment.example.yaml --dry-run
 ```
 
+Run and batch commands show simulation and benchmark progress on stderr; their final JSON results remain on stdout.
+
 Market data and run artifacts are ignored by Git. Instrument economics and CSV
 semantics are always explicit in YAML; the engine has no hidden broker defaults.
 

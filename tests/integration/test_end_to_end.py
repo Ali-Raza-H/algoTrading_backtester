@@ -54,3 +54,9 @@ def test_import_run_and_report_are_reproducible(tmp_path: Path) -> None:
     run_benchmarks(benchmarked)
     assert len(benchmarked.benchmarks) == 3
     assert benchmarked.benchmark_comparison is not None
+    # The deterministic seed is an unsigned 64-bit integer, potentially above int64.
+    benchmarked.benchmarks[1]["seed"] = 2**64 - 1
+    benchmark_dir = write_run(benchmarked)
+    rows = pq.read_table(benchmark_dir / "benchmarks.parquet").to_pylist()
+    assert rows[0]["seed"] is None
+    assert rows[1]["seed"] == 2**64 - 1

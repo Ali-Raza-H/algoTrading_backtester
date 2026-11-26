@@ -48,8 +48,8 @@ account:
   stop_out_percent: '50'
 
 benchmark:
-  enabled: false
-  trials: 1000
+  enabled: true
+  trials: 10
   policies: [random_policy, cash]
   entry_probability: 0.01
   holding_bars: 12
@@ -63,6 +63,6 @@ experiment:
   workers: 1
 
 report:
-  directory: ../runs
+  directory: ./runs
   full_market_trace: false
 

@@ -21,7 +21,7 @@ strategy:
   strategy_id: candle-score-example
   version: '1.0.0'
   parameters:
-    timeframe: 1h
+    timeframe: 5m
     candle_count: 12
     average_periods: 5
     big_move_percent: '1.0'
@@ -29,10 +29,15 @@ strategy:
     atr_multiplier: '1.5'
     risk_reward: '2.0'
     quantity: '0.01'
-  timeframes: [1m, 1h]
+  # The engine streams bars for `timeframes` and buffers each one to
+  # `lookbacks[tf] + 2` bars. `parameters.timeframe` only selects which of those
+  # events the strategy acts on, so all three must agree: a timeframe that is
+  # missing there, or spelled differently, is rejected at load time.
+  timeframes: [1m, 5m, 1h]
   lookbacks:
-    1m: 1
-    1h: 32
+    5m: 30
+    1m: 30
+    1h: 32          # at least candle_count + average_periods + atr_period
 
 execution:
   slippage_ticks: '0'

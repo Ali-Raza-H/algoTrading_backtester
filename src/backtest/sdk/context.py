@@ -73,6 +73,12 @@ class StrategyContext:
             history.append(bar)
 
     def bars(self, instrument: str, timeframe: str, count: int) -> tuple[Bar, ...]:
+        """Return the latest ``count`` bars of a subscribed timeframe.
+
+        Requesting more bars than the configured buffer holds raises instead of
+        returning a short tuple: silently shortening the history hides a
+        ``strategy.lookbacks`` entry that is too small for the strategy.
+        """
         if instrument != self._broker.instrument.id:
             return ()
         if count < 1:
@@ -80,6 +86,12 @@ class StrategyContext:
         history = self._history.get(timeframe)
         if history is None:
             raise ValueError(f"timeframe {timeframe!r} is not subscribed")
+        capacity = history.maxlen or count
+        if count > capacity:
+            raise ValueError(
+                f"requested {count} bars of {timeframe!r} but the buffer holds {capacity}; "
+                f"raise strategy.lookbacks.{timeframe} to at least {count - 2}"
+            )
         return tuple(history)[-count:]
 
     def account(self) -> AccountSnapshot | None:

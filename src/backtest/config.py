@@ -12,6 +12,7 @@ import yaml
 from backtest.domain.errors import ConfigError
 from backtest.domain.models import Instrument, PositionMode, PriceBasis
 from backtest.market.calendar import SessionCalendar
+from backtest.market.timeframes import parse_timeframe
 
 
 def _mapping(value: object, path: str) -> dict[str, Any]:
@@ -62,6 +63,70 @@ def _path(base: Path, value: object, path: str) -> Path:
         raise ConfigError(f"{path}: expected a non-empty path")
     candidate = Path(value).expanduser()
     return candidate if candidate.is_absolute() else (base / candidate).resolve()
+
+
+def _timeframe_labels(values: list[Any], path: str) -> tuple[str, ...]:
+    """Normalise declared timeframe labels and order them by duration.
+
+    Strategies compare timeframe labels verbatim against ``event.timeframe``, so
+    ``1H`` must never reach the engine as anything other than ``1h``.
+    """
+    labels: dict[int, str] = {}
+    for value in values:
+        timeframe = parse_timeframe(str(value))
+        existing = labels.get(timeframe.seconds)
+        if existing is not None:
+            raise ConfigError(f"{path}: {existing!r} and {value!r} are the same duration")
+        labels[timeframe.seconds] = timeframe.label
+    return tuple(labels[seconds] for seconds in sorted(labels))
+
+
+def _lookbacks(raw: object, timeframes: tuple[str, ...], path: str) -> dict[str, int]:
+    """Require one positive lookback for every subscribed timeframe.
+
+    A missing entry would silently shrink the history buffer to the engine default
+    and leave the strategy guessing why it never sees enough bars.
+    """
+    declared = _mapping(raw, path)
+    subscribed = {parse_timeframe(label).seconds: label for label in timeframes}
+    lookbacks: dict[str, int] = {}
+    for key, value in declared.items():
+        timeframe = parse_timeframe(str(key))
+        label = subscribed.get(timeframe.seconds)
+        if label is None:
+            raise ConfigError(
+                f"{path}: {key!r} is not declared in strategy.timeframes {list(timeframes)}"
+            )
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+            raise ConfigError(f"{path}.{label}: expected a positive integer")
+        lookbacks[label] = value
+    missing = [label for label in timeframes if label not in lookbacks]
+    if missing:
+        raise ConfigError(f"{path}: missing entries for {missing}")
+    return lookbacks
+
+
+def _align_timeframe_parameter(
+    parameters: dict[str, Any], timeframes: tuple[str, ...]
+) -> dict[str, Any]:
+    """Point a strategy's own ``timeframe`` parameter at a subscribed label.
+
+    Strategies filter market events on that parameter, so a timeframe that is not
+    subscribed, or spelled differently from the subscription, would ignore every
+    bar and complete the run with no trades and no error.
+    """
+    if "timeframe" not in parameters:
+        return parameters
+    requested = parameters["timeframe"]
+    wanted = parse_timeframe(str(requested))
+    subscribed = {parse_timeframe(label).seconds: label for label in timeframes}
+    label = subscribed.get(wanted.seconds)
+    if label is None:
+        raise ConfigError(
+            f"strategy.parameters.timeframe: {requested!r} is not declared in "
+            f"strategy.timeframes {list(timeframes)}"
+        )
+    return {**parameters, "timeframe": label}
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -317,16 +382,17 @@ class ExperimentConfig:
         _strict(raw_s, s_keys, "strategy")
         _required(raw_s, s_keys, "strategy")
         tfs = raw_s["timeframes"]
-        lbs = _mapping(raw_s["lookbacks"], "strategy.lookbacks")
         if not isinstance(tfs, list) or not tfs:
             raise ConfigError("strategy.timeframes: expected a non-empty list")
+        timeframes = _timeframe_labels(tfs, "strategy.timeframes")
+        parameters = _mapping(raw_s["parameters"], "strategy.parameters")
         strategy = StrategyConfig(
             entrypoint=str(raw_s["entrypoint"]),
             strategy_id=str(raw_s["strategy_id"]),
             version=str(raw_s["version"]),
-            parameters=_mapping(raw_s["parameters"], "strategy.parameters"),
-            timeframes=tuple(str(item) for item in tfs),
-            lookbacks={str(key): int(value) for key, value in lbs.items()},
+            parameters=_align_timeframe_parameter(parameters, timeframes),
+            timeframes=timeframes,
+            lookbacks=_lookbacks(raw_s["lookbacks"], timeframes, "strategy.lookbacks"),
         )
 
         raw_e = _mapping(root["execution"], "execution")

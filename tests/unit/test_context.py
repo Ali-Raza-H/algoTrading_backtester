@@ -38,6 +38,20 @@ def test_virtual_timer_rejects_non_future_time(broker: Broker) -> None:
         context.schedule_at(now, "invalid")
 
 
+def test_bars_beyond_the_history_buffer_raise(broker: Broker) -> None:
+    context = StrategyContext(
+        broker=broker,
+        portfolio=broker.portfolio,
+        seed=42,
+        history_sizes={"1m": 3},
+    )
+    for minute in range(3):
+        context._append_bar(make_bar(minute))
+    assert len(context.bars("XAUUSD", "1m", 2)) == 2
+    with pytest.raises(ValueError, match=r"raise strategy.lookbacks.1m to at least 30"):
+        context.bars("XAUUSD", "1m", 32)
+
+
 def test_context_returns_current_account_and_defensive_positions(broker: Broker) -> None:
     context = StrategyContext(
         broker=broker,

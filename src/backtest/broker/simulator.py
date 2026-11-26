@@ -236,6 +236,16 @@ class Broker:
         *,
         ambiguous: bool = False,
     ) -> Fill | None:
+        if order.request.position_id:
+            position = self.portfolio.positions.get(order.request.position_id)
+            if position is None or position.side is not order.request.side.opposite:
+                self._reject(order, "UNKNOWN_POSITION", "target position is no longer open")
+                return None
+            if order.remaining_quantity > position.quantity:
+                self._reject(
+                    order, "INVALID_CLOSE_QUANTITY", "close quantity exceeds open position"
+                )
+                return None
         if not order.request.reduce_only:
             required = (
                 order.remaining_quantity

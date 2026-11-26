@@ -243,3 +243,30 @@ def test_expiry_precedes_matching_at_same_timestamp(broker: Broker) -> None:
     broker.process_bar(make_bar(0, open_price="2650"))
     assert order.status is OrderStatus.EXPIRED
     assert not broker.fills
+
+
+def test_pending_close_is_rejected_if_protection_already_closed_position(broker: Broker) -> None:
+    broker.submit(
+        request("entry", Side.BUY, stop_loss=Decimal("2649")),
+        datetime(2024, 1, 2, tzinfo=UTC),
+    )
+    broker.process_bar(make_bar(0, open_price="2650"))
+    position = next(iter(broker.portfolio.positions.values()))
+    close = broker.submit(
+        OrderRequest(
+            request_id="close-pending",
+            instrument_id="XAUUSD",
+            side=Side.SELL,
+            type=OrderType.MARKET,
+            quantity=position.quantity,
+            reduce_only=True,
+            position_id=position.id,
+        ),
+        datetime(2024, 1, 2, 0, 1, tzinfo=UTC),
+    )
+    broker.process_bar(make_bar(1, open_price="2650", low="2648"))
+    assert close.status is OrderStatus.REJECTED
+    assert close.rejection_code == "UNKNOWN_POSITION"
+    assert len(broker.portfolio.trades) == 1
+    assert len(broker.fills) == 2
+    broker.portfolio.assert_reconciled()

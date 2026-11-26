@@ -86,3 +86,71 @@ def test_unknown_keys_are_rejected(tmp_path: Path) -> None:
     path.write_text(valid_config(tmp_path / "manifest.json") + "surprise: true\n")
     with pytest.raises(ConfigError, match="unknown keys"):
         ExperimentConfig.from_file(path)
+
+
+def write_config(tmp_path: Path, **replacements: str) -> Path:
+    """Render the valid config with individual fragments swapped out."""
+    content = valid_config(tmp_path / "manifest.json")
+    for old, new in replacements.items():
+        assert old in content, f"fragment {old!r} is not in the fixture config"
+        content = content.replace(old, new)
+    path = tmp_path / "experiment.yaml"
+    path.write_text(content)
+    return path
+
+
+PARAMETERS = "parameters: {fast_period: 1, slow_period: 2, quantity: '0.01'}"
+LOOKBACKS = "lookbacks: {1m: 1, 1h: 2}"
+
+
+def test_strategy_timeframe_must_be_subscribed(tmp_path: Path) -> None:
+    path = write_config(tmp_path, **{PARAMETERS: PARAMETERS[:-1] + ", timeframe: 5m}"})
+    with pytest.raises(ConfigError, match=r"not declared in strategy\.timeframes"):
+        ExperimentConfig.from_file(path)
+
+
+def test_strategy_timeframe_label_is_canonicalised(tmp_path: Path) -> None:
+    path = write_config(tmp_path, **{PARAMETERS: PARAMETERS[:-1] + ", timeframe: 1H}"})
+    assert ExperimentConfig.from_file(path).strategy.parameters["timeframe"] == "1h"
+
+
+def test_strategy_timeframe_matches_subscription_by_duration(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        **{
+            PARAMETERS: PARAMETERS[:-1] + ", timeframe: 240m}",
+            "timeframes: [1m, 1h]": "timeframes: [1m, 4h]",
+            LOOKBACKS: "lookbacks: {1m: 1, 4h: 2}",
+        },
+    )
+    assert ExperimentConfig.from_file(path).strategy.parameters["timeframe"] == "4h"
+
+
+def test_lookbacks_must_cover_every_subscription(tmp_path: Path) -> None:
+    path = write_config(tmp_path, **{LOOKBACKS: "lookbacks: {1m: 1}"})
+    with pytest.raises(ConfigError, match="missing entries for"):
+        ExperimentConfig.from_file(path)
+
+
+def test_lookbacks_for_unsubscribed_timeframe_are_rejected(tmp_path: Path) -> None:
+    path = write_config(tmp_path, **{LOOKBACKS: "lookbacks: {1m: 1, 1h: 2, 4h: 32}"})
+    with pytest.raises(ConfigError, match=r"not declared in strategy\.timeframes"):
+        ExperimentConfig.from_file(path)
+
+
+def test_lookbacks_must_be_positive(tmp_path: Path) -> None:
+    path = write_config(tmp_path, **{LOOKBACKS: "lookbacks: {1m: 1, 1h: 0}"})
+    with pytest.raises(ConfigError, match="positive integer"):
+        ExperimentConfig.from_file(path)
+
+
+def test_equal_duration_timeframes_are_rejected(tmp_path: Path) -> None:
+    path = write_config(
+        tmp_path,
+        **{
+            "timeframes: [1m, 1h]": "timeframes: [1m, 1h, 60m]",
+            LOOKBACKS: "lookbacks: {1m: 1, 1h: 2}",
+        },
+    )
+    with pytest.raises(ConfigError, match="same duration"):
+        ExperimentConfig.from_file(path)

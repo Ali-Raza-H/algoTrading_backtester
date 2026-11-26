@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -89,7 +90,9 @@ def _warmup_duration(config: ExperimentConfig) -> timedelta:
     return timedelta(seconds=seconds)
 
 
-def execute_run(config: ExperimentConfig) -> RunResult:
+def execute_run(
+    config: ExperimentConfig, progress: Callable[[int, datetime], None] | None = None
+) -> RunResult:
     validation = validate_run(config)
     manifest = load_manifest(config.source)
     portfolio = Portfolio(
@@ -149,6 +152,8 @@ def execute_run(config: ExperimentConfig) -> RunResult:
         strategy.on_start(context)
         for source in iter_bars(config.source, start=warmup_start, end=config.end):
             result.source_bars += 1
+            if progress is not None:
+                progress(result.source_bars, source.close_time)
             warmup = source.close_time <= config.start
             context._advance(source.close_time, warmup=warmup)
             new_fills: list[Fill] = []

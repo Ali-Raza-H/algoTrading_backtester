@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import replace
 from typing import Any
@@ -50,7 +51,9 @@ def _random_trial(arguments: tuple[ExperimentConfig, int]) -> dict[str, Any]:
     }
 
 
-def run_benchmarks(result: RunResult) -> None:
+def run_benchmarks(
+    result: RunResult, progress: Callable[[int, int], None] | None = None
+) -> None:
     config = result.config
     benchmark = config.benchmark
     if not benchmark.enabled:
@@ -69,11 +72,17 @@ def run_benchmarks(result: RunResult) -> None:
         )
     if "random_policy" in benchmark.policies:
         arguments = [(config, trial) for trial in range(benchmark.trials)]
+        def collect(results: Any) -> None:
+            for count, row in enumerate(results, 1):
+                rows.append(row)
+                if progress is not None:
+                    progress(count, len(arguments))
+
         if config.workers == 1:
-            rows.extend(_random_trial(item) for item in arguments)
+            collect(map(_random_trial, arguments))
         else:
             with ProcessPoolExecutor(max_workers=config.workers) as executor:
-                rows.extend(executor.map(_random_trial, arguments))
+                collect(executor.map(_random_trial, arguments))
     result.benchmarks = rows
     random_returns = [
         float(row["net_return_percent"]) for row in rows if row["policy"] == "random_policy"
